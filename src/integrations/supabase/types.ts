@@ -14,7 +14,189 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      creators: {
+        Row: {
+          bio: string | null
+          bio_hashtags: string | null
+          bio_mentions: string | null
+          category: string | null
+          engagement_rate: number | null
+          external_url: string | null
+          follower_count: number | null
+          following_count: number | null
+          full_name: string | null
+          id: string
+          is_business: boolean | null
+          is_private: boolean | null
+          is_verified: boolean | null
+          last_updated: string | null
+          media_count: number | null
+          pk: string | null
+          profile_pic_local: string | null
+          profile_pic_url: string | null
+          profile_type: string | null
+          profile_url: string | null
+          scraped_at: string | null
+          search_score: number | null
+          source_keyword: string | null
+          username: string
+        }
+        Insert: {
+          bio?: string | null
+          bio_hashtags?: string | null
+          bio_mentions?: string | null
+          category?: string | null
+          engagement_rate?: number | null
+          external_url?: string | null
+          follower_count?: number | null
+          following_count?: number | null
+          full_name?: string | null
+          id?: string
+          is_business?: boolean | null
+          is_private?: boolean | null
+          is_verified?: boolean | null
+          last_updated?: string | null
+          media_count?: number | null
+          pk?: string | null
+          profile_pic_local?: string | null
+          profile_pic_url?: string | null
+          profile_type?: string | null
+          profile_url?: string | null
+          scraped_at?: string | null
+          search_score?: number | null
+          source_keyword?: string | null
+          username: string
+        }
+        Update: {
+          bio?: string | null
+          bio_hashtags?: string | null
+          bio_mentions?: string | null
+          category?: string | null
+          engagement_rate?: number | null
+          external_url?: string | null
+          follower_count?: number | null
+          following_count?: number | null
+          full_name?: string | null
+          id?: string
+          is_business?: boolean | null
+          is_private?: boolean | null
+          is_verified?: boolean | null
+          last_updated?: string | null
+          media_count?: number | null
+          pk?: string | null
+          profile_pic_local?: string | null
+          profile_pic_url?: string | null
+          profile_type?: string | null
+          profile_url?: string | null
+          scraped_at?: string | null
+          search_score?: number | null
+          source_keyword?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
+      database_configs: {
+        Row: {
+          created_at: string | null
+          database_name: string
+          host: string
+          id: string
+          is_active: boolean | null
+          last_connected: string | null
+          name: string
+          password_encrypted: string
+          port: number | null
+          username: string
+        }
+        Insert: {
+          created_at?: string | null
+          database_name: string
+          host: string
+          id?: string
+          is_active?: boolean | null
+          last_connected?: string | null
+          name?: string
+          password_encrypted: string
+          port?: number | null
+          username: string
+        }
+        Update: {
+          created_at?: string | null
+          database_name?: string
+          host?: string
+          id?: string
+          is_active?: boolean | null
+          last_connected?: string | null
+          name?: string
+          password_encrypted?: string
+          port?: number | null
+          username?: string
+        }
+        Relationships: []
+      }
+      scraping_jobs: {
+        Row: {
+          completed_at: string | null
+          error_message: string | null
+          id: string
+          search_query: string
+          started_at: string | null
+          status: string | null
+          total_found: number | null
+          total_saved: number | null
+        }
+        Insert: {
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          search_query: string
+          started_at?: string | null
+          status?: string | null
+          total_found?: number | null
+          total_saved?: number | null
+        }
+        Update: {
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          search_query?: string
+          started_at?: string | null
+          status?: string | null
+          total_found?: number | null
+          total_saved?: number | null
+        }
+        Relationships: []
+      }
+      session_configs: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          last_used: string | null
+          session_id: string
+          success_rate: number | null
+          total_requests: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_used?: string | null
+          session_id: string
+          success_rate?: number | null
+          total_requests?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_used?: string | null
+          session_id?: string
+          success_rate?: number | null
+          total_requests?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
