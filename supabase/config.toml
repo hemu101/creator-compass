@@ -1,1 +1,16 @@
 project_id = "btmoftoyeamuoxvkkzvu"
+
+[functions.scrape-instagram]
+verify_jwt = false
+
+[functions.search-creators]
+verify_jwt = false
+
+[functions.database-stats]
+verify_jwt = false
+
+[functions.test-db-connection]
+verify_jwt = false
+
+[functions.database-tables]
+verify_jwt = false

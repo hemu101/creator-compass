@@ -4,8 +4,11 @@ import { SearchFiltersPanel } from "@/components/SearchFiltersPanel";
 import { PromptSearch, ExtractedFilters } from "@/components/PromptSearch";
 import { SessionManager } from "@/components/SessionManager";
 import { DatabaseSetup } from "@/components/DatabaseSetup";
+import { DatabaseConfigPanel } from "@/components/DatabaseConfigPanel";
 import { ScrapePanel } from "@/components/ScrapePanel";
 import { CreatorResults } from "@/components/CreatorResults";
+import { CreatorDetailModal } from "@/components/CreatorDetailModal";
+import { ExportPanel } from "@/components/ExportPanel";
 import { Creator, SearchFilters, SessionConfig } from "@/types/creator";
 import { api, DatabaseStats } from "@/lib/api";
 import { toast } from "sonner";
@@ -13,7 +16,8 @@ import {
   Sparkles, 
   Filter, 
   Zap,
-  Download
+  Database,
+  Settings
 } from "lucide-react";
 
 const defaultFilters: SearchFilters = {
@@ -35,6 +39,9 @@ export default function Index() {
   const [isLoading, setIsLoading] = useState(false);
   const [sessions, setSessions] = useState<SessionConfig[]>([]);
   const [dbStats, setDbStats] = useState<DatabaseStats['stats'] | null>(null);
+  const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("search");
 
   // Load sessions on mount
   useEffect(() => {
@@ -132,7 +139,8 @@ export default function Index() {
   };
 
   const handleSelectCreator = (creator: Creator) => {
-    toast.success(`Selected ${creator.full_name}`);
+    setSelectedCreator(creator);
+    setIsDetailModalOpen(true);
   };
 
   const handleScrapeComplete = () => {
@@ -164,69 +172,106 @@ export default function Index() {
                 <p className="text-xs text-muted-foreground">Real-time Instagram Scraping • Cloud Database</p>
               </div>
             </div>
+            <div className="flex items-center gap-4">
+              <ExportPanel creators={creators} />
+            </div>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Sidebar */}
-          <aside className="lg:col-span-4 xl:col-span-3 space-y-6">
-            {/* Database Status */}
-            <DatabaseSetup onStatsUpdate={setDbStats} />
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="search" className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              Search & Scrape
+            </TabsTrigger>
+            <TabsTrigger value="database" className="flex items-center gap-2">
+              <Database className="w-4 h-4" />
+              Database Config
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              Sessions
+            </TabsTrigger>
+          </TabsList>
 
-            {/* Scrape Panel */}
-            <ScrapePanel 
-              activeSessionId={getActiveSessionId()} 
-              onScrapeComplete={handleScrapeComplete}
-            />
+          <TabsContent value="search">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left Sidebar */}
+              <aside className="lg:col-span-4 xl:col-span-3 space-y-6">
+                {/* Database Status */}
+                <DatabaseSetup onStatsUpdate={setDbStats} />
 
-            <Tabs defaultValue="prompt" className="w-full">
-              <TabsList className="w-full grid grid-cols-2 mb-4">
-                <TabsTrigger value="prompt" className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" />
-                  AI Prompt
-                </TabsTrigger>
-                <TabsTrigger value="filters" className="flex items-center gap-2">
-                  <Filter className="w-4 h-4" />
-                  Filters
-                </TabsTrigger>
-              </TabsList>
+                {/* Scrape Panel */}
+                <ScrapePanel 
+                  activeSessionId={getActiveSessionId()} 
+                  onScrapeComplete={handleScrapeComplete}
+                />
 
-              <TabsContent value="prompt" className="mt-0">
-                <PromptSearch 
-                  onSearch={handlePromptSearch}
+                <Tabs defaultValue="prompt" className="w-full">
+                  <TabsList className="w-full grid grid-cols-2 mb-4">
+                    <TabsTrigger value="prompt" className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" />
+                      AI Prompt
+                    </TabsTrigger>
+                    <TabsTrigger value="filters" className="flex items-center gap-2">
+                      <Filter className="w-4 h-4" />
+                      Filters
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="prompt" className="mt-0">
+                    <PromptSearch 
+                      onSearch={handlePromptSearch}
+                      isLoading={isLoading}
+                    />
+                  </TabsContent>
+
+                  <TabsContent value="filters" className="mt-0">
+                    <SearchFiltersPanel
+                      filters={filters}
+                      onFiltersChange={setFilters}
+                      onSearch={handleFilterSearch}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </aside>
+
+              {/* Main Content Area */}
+              <section className="lg:col-span-8 xl:col-span-9">
+                <CreatorResults
+                  creators={creators}
                   isLoading={isLoading}
+                  onSelect={handleSelectCreator}
                 />
-              </TabsContent>
+              </section>
+            </div>
+          </TabsContent>
 
-              <TabsContent value="filters" className="mt-0">
-                <SearchFiltersPanel
-                  filters={filters}
-                  onFiltersChange={setFilters}
-                  onSearch={handleFilterSearch}
-                />
-              </TabsContent>
-            </Tabs>
+          <TabsContent value="database">
+            <DatabaseConfigPanel />
+          </TabsContent>
 
-            {/* Session Manager */}
-            <SessionManager
-              sessions={sessions}
-              onSessionsChange={handleSessionsChange}
-            />
-          </aside>
-
-          {/* Main Content Area */}
-          <section className="lg:col-span-8 xl:col-span-9">
-            <CreatorResults
-              creators={creators}
-              isLoading={isLoading}
-              onSelect={handleSelectCreator}
-            />
-          </section>
-        </div>
+          <TabsContent value="settings">
+            <div className="max-w-2xl">
+              <SessionManager
+                sessions={sessions}
+                onSessionsChange={handleSessionsChange}
+              />
+            </div>
+          </TabsContent>
+        </Tabs>
       </main>
+
+      {/* Creator Detail Modal */}
+      <CreatorDetailModal
+        creator={selectedCreator}
+        open={isDetailModalOpen}
+        onOpenChange={setIsDetailModalOpen}
+        onUpdate={loadCreators}
+      />
     </div>
   );
 }
