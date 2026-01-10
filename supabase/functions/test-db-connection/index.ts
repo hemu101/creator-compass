@@ -28,15 +28,26 @@ serve(async (req) => {
     // Import postgres client
     const { Client } = await import("https://deno.land/x/postgres@v0.17.0/mod.ts");
     
+    // Check if this is AWS RDS (requires SSL)
+    const isRDS = host.includes('rds.amazonaws.com');
+    
     const client = new Client({
       hostname: host,
       port: port,
       database: database,
       user: user,
       password: dbPassword,
-      tls: { enabled: false },
+      tls: { 
+        enabled: isRDS, // Enable TLS for RDS
+        enforce: false, // Don't enforce certificate verification for RDS
+      },
+      connection: {
+        attempts: 1, // Single attempt to avoid long waits
+      },
     });
 
+    console.log(`Connecting with TLS: ${isRDS}`);
+    
     await client.connect();
     
     // Test query
@@ -57,11 +68,24 @@ serve(async (req) => {
     
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorName = error instanceof Error ? error.name : '';
+    
     console.error('Connection test error:', error);
+    
+    // Provide more helpful error messages
+    let helpfulMessage = errorMessage;
+    if (errorName === 'TimedOut' || errorMessage.includes('timed out')) {
+      helpfulMessage = 'Connection timed out. The database server may not be accessible from this network. For AWS RDS, ensure the security group allows inbound connections from 0.0.0.0/0 on port 5432, or the RDS instance is publicly accessible.';
+    } else if (errorMessage.includes('password authentication failed')) {
+      helpfulMessage = 'Password authentication failed. Please check your username and password.';
+    } else if (errorMessage.includes('does not exist')) {
+      helpfulMessage = 'Database does not exist. Please check the database name.';
+    }
+    
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: errorMessage 
+        error: helpfulMessage 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

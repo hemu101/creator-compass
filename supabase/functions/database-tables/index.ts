@@ -30,7 +30,8 @@ serve(async (req) => {
       );
     }
 
-    const dbPassword = Deno.env.get('EXTERNAL_DB_PASSWORD');
+    // Use stored password or fallback to secret
+    const dbPassword = config.password_encrypted || Deno.env.get('EXTERNAL_DB_PASSWORD');
     
     if (!dbPassword) {
       return new Response(
@@ -42,13 +43,24 @@ serve(async (req) => {
     // Import postgres client
     const { Client } = await import("https://deno.land/x/postgres@v0.17.0/mod.ts");
     
+    // Check if this is AWS RDS (requires SSL)
+    const isRDS = config.host.includes('rds.amazonaws.com');
+    
+    console.log(`Connecting to ${config.host}:${config.port}/${config.database_name} with TLS: ${isRDS}`);
+    
     const client = new Client({
       hostname: config.host,
       port: config.port,
       database: config.database_name,
       user: config.username,
       password: dbPassword,
-      tls: { enabled: false },
+      tls: { 
+        enabled: isRDS,
+        enforce: false,
+      },
+      connection: {
+        attempts: 1,
+      },
     });
 
     await client.connect();
@@ -90,6 +102,12 @@ serve(async (req) => {
     
     await client.end();
     
+    // Update last_connected timestamp
+    await supabase
+      .from('database_configs')
+      .update({ last_connected: new Date().toISOString() })
+      .eq('id', config.id);
+    
     console.log(`Found ${tables.length} tables`);
     
     return new Response(
@@ -99,9 +117,18 @@ serve(async (req) => {
     
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorName = error instanceof Error ? error.name : '';
+    
     console.error('Database tables error:', error);
+    
+    // Provide more helpful error messages
+    let helpfulMessage = errorMessage;
+    if (errorName === 'TimedOut' || errorMessage.includes('timed out')) {
+      helpfulMessage = 'Connection timed out. For AWS RDS, ensure: 1) The RDS instance is publicly accessible, 2) Security group allows inbound traffic on port 5432 from 0.0.0.0/0';
+    }
+    
     return new Response(
-      JSON.stringify({ success: false, error: errorMessage, tables: [] }),
+      JSON.stringify({ success: false, error: helpfulMessage, tables: [] }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
