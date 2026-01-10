@@ -47,14 +47,16 @@ export function DatabaseConfigPanel() {
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [tables, setTables] = useState<TableInfo[]>([]);
   const [isLoadingTables, setIsLoadingTables] = useState(false);
+  const [tableError, setTableError] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     name: "External PostgreSQL",
-    host: "data-filtration.cuhp98oe4phe.us-west-2.rds.amazonaws.com",
+    host: "",
     port: 5432,
-    database_name: "creatorsdata",
+    database_name: "",
     username: "postgres",
     password: "",
   });
@@ -88,17 +90,22 @@ export function DatabaseConfigPanel() {
 
   const fetchTables = async () => {
     setIsLoadingTables(true);
+    setTableError(null);
     try {
       const { data, error } = await supabase.functions.invoke("database-tables", {
         body: {},
       });
 
       if (error) throw error;
-      if (data?.tables) {
+      if (data?.success === false) {
+        setTableError(data.error || "Failed to fetch tables");
+        setTables([]);
+      } else if (data?.tables) {
         setTables(data.tables);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching tables:", error);
+      setTableError(error.message || "Failed to connect to database");
     } finally {
       setIsLoadingTables(false);
     }
@@ -106,6 +113,7 @@ export function DatabaseConfigPanel() {
 
   const testConnection = async () => {
     setIsTesting(true);
+    setTestResult(null);
     try {
       const { data, error } = await supabase.functions.invoke("test-db-connection", {
         body: {
@@ -119,13 +127,17 @@ export function DatabaseConfigPanel() {
 
       if (error) throw error;
       if (data?.success) {
+        setTestResult({ success: true, message: "Connection successful!" });
         toast.success("Connection successful!");
       } else {
+        setTestResult({ success: false, message: data?.error || "Connection failed" });
         toast.error(data?.error || "Connection failed");
       }
     } catch (error: any) {
       console.error("Test connection error:", error);
-      toast.error("Connection test failed: " + error.message);
+      const message = error.message || "Connection test failed";
+      setTestResult({ success: false, message });
+      toast.error("Connection test failed: " + message);
     } finally {
       setIsTesting(false);
     }
@@ -272,14 +284,29 @@ export function DatabaseConfigPanel() {
                 />
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={testConnection} disabled={isTesting}>
+                <Button variant="outline" onClick={testConnection} disabled={isTesting || !formData.host || !formData.password}>
                   <RefreshCw className={`h-4 w-4 mr-2 ${isTesting ? "animate-spin" : ""}`} />
                   Test Connection
                 </Button>
-                <Button onClick={saveConfig} className="flex-1">
+                <Button onClick={saveConfig} className="flex-1" disabled={!formData.host || !formData.password}>
                   Save Configuration
                 </Button>
               </div>
+              {testResult && (
+                <div className={`mt-3 p-3 rounded-lg text-sm ${testResult.success ? 'bg-green-500/10 text-green-600 border border-green-500/20' : 'bg-destructive/10 text-destructive border border-destructive/20'}`}>
+                  {testResult.success ? (
+                    <div className="flex items-center gap-2">
+                      <Check className="h-4 w-4" />
+                      {testResult.message}
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-2">
+                      <X className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <span>{testResult.message}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
@@ -344,12 +371,31 @@ export function DatabaseConfigPanel() {
             </Table>
 
             {/* Table Mapping */}
-            {tables.length > 0 && (
+            {isLoadingTables ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Loading tables from external database...
+              </div>
+            ) : tableError ? (
+              <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-destructive mb-2">Connection Error</h4>
+                <p className="text-sm text-destructive/80">{tableError}</p>
+                <Button variant="outline" size="sm" onClick={fetchTables} className="mt-3">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Retry
+                </Button>
+              </div>
+            ) : tables.length > 0 ? (
               <div>
-                <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Database Tables
-                </h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium flex items-center gap-2">
+                    <Settings className="h-4 w-4" />
+                    Database Tables
+                  </h4>
+                  <Button variant="ghost" size="sm" onClick={fetchTables}>
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {tables.map((table) => (
                     <div key={table.name} className="bg-muted rounded-lg p-3">
@@ -373,7 +419,7 @@ export function DatabaseConfigPanel() {
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         )}
       </CardContent>

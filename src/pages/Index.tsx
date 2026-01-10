@@ -8,16 +8,19 @@ import { DatabaseConfigPanel } from "@/components/DatabaseConfigPanel";
 import { ScrapePanel } from "@/components/ScrapePanel";
 import { CreatorResults } from "@/components/CreatorResults";
 import { CreatorDetailModal } from "@/components/CreatorDetailModal";
+import { AddCreatorModal } from "@/components/AddCreatorModal";
 import { ExportPanel } from "@/components/ExportPanel";
 import { Creator, SearchFilters, SessionConfig } from "@/types/creator";
 import { api, DatabaseStats } from "@/lib/api";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { 
   Sparkles, 
   Filter, 
   Zap,
   Database,
-  Settings
+  Settings,
+  Plus
 } from "lucide-react";
 
 const defaultFilters: SearchFilters = {
@@ -41,6 +44,7 @@ export default function Index() {
   const [dbStats, setDbStats] = useState<DatabaseStats['stats'] | null>(null);
   const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("search");
 
   // Load sessions on mount
@@ -173,6 +177,10 @@ export default function Index() {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              <Button onClick={() => setIsAddModalOpen(true)} variant="outline">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Creator
+              </Button>
               <ExportPanel creators={creators} />
             </div>
           </div>
@@ -271,6 +279,13 @@ export default function Index() {
         open={isDetailModalOpen}
         onOpenChange={setIsDetailModalOpen}
         onUpdate={loadCreators}
+      />
+
+      {/* Add Creator Modal */}
+      <AddCreatorModal
+        open={isAddModalOpen}
+        onOpenChange={setIsAddModalOpen}
+        onCreated={loadCreators}
       />
     </div>
   );
