@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Database, Plus, Trash2, RefreshCw, Check, X, Settings } from "lucide-react";
+import { Database, Plus, Trash2, RefreshCw, Check, X, Settings, ArrowDownToLine } from "lucide-react";
 
 interface DatabaseConfig {
   id: string;
@@ -42,6 +43,14 @@ interface TableInfo {
   columns: string[];
 }
 
+interface SyncProgress {
+  isSyncing: boolean;
+  imported: number;
+  updated: number;
+  total: number;
+  progress: number;
+}
+
 export function DatabaseConfigPanel() {
   const [configs, setConfigs] = useState<DatabaseConfig[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -51,6 +60,13 @@ export function DatabaseConfigPanel() {
   const [tables, setTables] = useState<TableInfo[]>([]);
   const [isLoadingTables, setIsLoadingTables] = useState(false);
   const [tableError, setTableError] = useState<string | null>(null);
+  const [syncProgress, setSyncProgress] = useState<SyncProgress>({
+    isSyncing: false,
+    imported: 0,
+    updated: 0,
+    total: 0,
+    progress: 0
+  });
   
   const [formData, setFormData] = useState({
     name: "External PostgreSQL",
@@ -184,6 +200,51 @@ export function DatabaseConfigPanel() {
     }
   };
 
+  const syncFromRDS = async () => {
+    setSyncProgress({ isSyncing: true, imported: 0, updated: 0, total: 0, progress: 0 });
+    
+    try {
+      let offset = 0;
+      const batchSize = 100;
+      let totalImported = 0;
+      let totalUpdated = 0;
+      let grandTotal = 0;
+
+      while (true) {
+        const { data, error } = await supabase.functions.invoke("sync-rds-data", {
+          body: { limit: batchSize, offset },
+        });
+
+        if (error) throw error;
+        if (!data?.success) throw new Error(data?.error || "Sync failed");
+
+        totalImported += data.imported || 0;
+        totalUpdated += data.updated || 0;
+        grandTotal = data.total || 0;
+
+        const progress = grandTotal > 0 ? Math.min(100, ((offset + batchSize) / grandTotal) * 100) : 100;
+        setSyncProgress({
+          isSyncing: true,
+          imported: totalImported,
+          updated: totalUpdated,
+          total: grandTotal,
+          progress
+        });
+
+        if (!data.hasMore) break;
+        offset += batchSize;
+      }
+
+      toast.success(`Sync complete! ${totalImported} imported, ${totalUpdated} updated`);
+    } catch (error: any) {
+      console.error("Sync error:", error);
+      toast.error("Sync failed: " + error.message);
+    } finally {
+      setSyncProgress(prev => ({ ...prev, isSyncing: false, progress: 100 }));
+    }
+  };
+
+  const activeConfig = configs.find(c => c.is_active);
   const setActiveConfig = async (id: string) => {
     try {
       // Deactivate all first
@@ -216,10 +277,27 @@ export function DatabaseConfigPanel() {
             External Database Configuration
           </CardTitle>
           <CardDescription>
-            Connect to your PostgreSQL database for creator data
+            Connect to your PostgreSQL database and sync creator data
           </CardDescription>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <div className="flex gap-2">
+          {activeConfig && (
+            <Button 
+              onClick={syncFromRDS}
+              disabled={syncProgress.isSyncing}
+              variant="outline"
+            >
+              <ArrowDownToLine className={`h-4 w-4 mr-2 ${syncProgress.isSyncing ? 'animate-bounce' : ''}`} />
+              {syncProgress.isSyncing ? 'Syncing...' : 'Sync from RDS'}
+            </Button>
+          )}
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Connection
+              </Button>
+            </DialogTrigger>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -309,9 +387,27 @@ export function DatabaseConfigPanel() {
               )}
             </div>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </CardHeader>
       <CardContent>
+        {/* Sync Progress */}
+        {syncProgress.isSyncing && (
+          <div className="mb-6 p-4 bg-muted rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">Syncing data from RDS...</span>
+              <span className="text-sm text-muted-foreground">
+                {syncProgress.imported + syncProgress.updated} / {syncProgress.total}
+              </span>
+            </div>
+            <Progress value={syncProgress.progress} className="h-2" />
+            <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+              <span>New: {syncProgress.imported}</span>
+              <span>Updated: {syncProgress.updated}</span>
+            </div>
+          </div>
+        )}
+
         {isLoading ? (
           <p className="text-muted-foreground">Loading configurations...</p>
         ) : configs.length === 0 ? (

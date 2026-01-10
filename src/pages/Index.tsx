@@ -253,6 +253,7 @@ export default function Index() {
                   creators={creators}
                   isLoading={isLoading}
                   onSelect={handleSelectCreator}
+                  onRefresh={loadCreators}
                 />
               </section>
             </div>
