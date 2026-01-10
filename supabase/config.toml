@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.database-tables]
 verify_jwt = false
+
+[functions.sync-rds-data]
+verify_jwt = false
