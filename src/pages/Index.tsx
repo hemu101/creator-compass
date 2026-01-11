@@ -10,6 +10,8 @@ import { CreatorResults } from "@/components/CreatorResults";
 import { CreatorDetailModal } from "@/components/CreatorDetailModal";
 import { AddCreatorModal } from "@/components/AddCreatorModal";
 import { ExportPanel } from "@/components/ExportPanel";
+import { DuplicateDetector } from "@/components/DuplicateDetector";
+import { DataImporter } from "@/components/DataImporter";
 import { Creator, SearchFilters, SessionConfig } from "@/types/creator";
 import { api, DatabaseStats } from "@/lib/api";
 import { toast } from "sonner";
@@ -20,7 +22,8 @@ import {
   Zap,
   Database,
   Settings,
-  Plus
+  Plus,
+  Upload
 } from "lucide-react";
 
 const defaultFilters: SearchFilters = {
@@ -260,7 +263,13 @@ export default function Index() {
           </TabsContent>
 
           <TabsContent value="database">
-            <DatabaseConfigPanel />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <DatabaseConfigPanel />
+              <div className="space-y-6">
+                <DataImporter onImportComplete={loadCreators} />
+                <DuplicateDetector onRefresh={loadCreators} />
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="settings">
