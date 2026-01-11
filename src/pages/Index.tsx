@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SearchFiltersPanel } from "@/components/SearchFiltersPanel";
 import { PromptSearch, ExtractedFilters } from "@/components/PromptSearch";
 import { SessionManager } from "@/components/SessionManager";
 import { DatabaseSetup } from "@/components/DatabaseSetup";
@@ -12,7 +13,9 @@ import { AddCreatorModal } from "@/components/AddCreatorModal";
 import { ExportPanel } from "@/components/ExportPanel";
 import { DuplicateDetector } from "@/components/DuplicateDetector";
 import { DataImporter } from "@/components/DataImporter";
-import { Creator, SearchFilters, SessionConfig } from "@/types/creator";
+import { FreeTools } from "@/components/FreeTools";
+import { AdvancedFilters } from "@/components/AdvancedFilters";
+import { Creator, AdvancedSearchFilters, SessionConfig } from "@/types/creator";
 import { api, DatabaseStats } from "@/lib/api";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -23,10 +26,13 @@ import {
   Database,
   Settings,
   Plus,
-  Upload
+  LogOut,
+  User,
+  Calculator
 } from "lucide-react";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 
-const defaultFilters: SearchFilters = {
+const defaultFilters: AdvancedSearchFilters = {
   hashtags: [],
   mentions: [],
   keywords: [],
@@ -36,11 +42,27 @@ const defaultFilters: SearchFilters = {
   isBusiness: null,
   isPrivate: null,
   profileType: "",
-  category: ""
+  category: "",
+  location: "",
+  city: "",
+  country: "",
+  state: "",
+  gender: "",
+  ageRange: "",
+  language: "",
+  ethnicity: "",
+  minPrice: 0,
+  maxPrice: 100000,
+  platform: "",
+  niche: "",
+  contentType: "",
+  isPremium: null
 };
 
 export default function Index() {
-  const [filters, setFilters] = useState<SearchFilters>(defaultFilters);
+  const navigate = useNavigate();
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [filters, setFilters] = useState<AdvancedSearchFilters>(defaultFilters);
   const [creators, setCreators] = useState<Creator[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [sessions, setSessions] = useState<SessionConfig[]>([]);
@@ -49,6 +71,21 @@ export default function Index() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("search");
+
+  // Auth state
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Load sessions on mount
   useEffect(() => {
@@ -123,7 +160,7 @@ export default function Index() {
   const handlePromptSearch = async (prompt: string, extracted: ExtractedFilters) => {
     setIsLoading(true);
     try {
-      const promptFilters: SearchFilters = {
+      const promptFilters: AdvancedSearchFilters = {
         ...defaultFilters,
         keywords: extracted.creatorTypes,
         minFollowers: extracted.followerRange.min,
@@ -151,7 +188,6 @@ export default function Index() {
   };
 
   const handleScrapeComplete = () => {
-    // Reload creators after scrape
     loadCreators();
   };
 
@@ -162,6 +198,11 @@ export default function Index() {
   const getActiveSessionId = (): string | undefined => {
     const active = sessions.find(s => s.isActive);
     return active?.sessionId;
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success("Logged out successfully");
   };
 
   return (
@@ -185,6 +226,21 @@ export default function Index() {
                 Add Creator
               </Button>
               <ExportPanel creators={creators} />
+              {user ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground hidden md:inline">
+                    {user.email}
+                  </span>
+                  <Button onClick={handleLogout} variant="ghost" size="icon">
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <Button onClick={() => navigate("/auth")} variant="default">
+                  <User className="h-4 w-4 mr-2" />
+                  Login
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -196,15 +252,19 @@ export default function Index() {
           <TabsList className="mb-6">
             <TabsTrigger value="search" className="flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
-              Search & Scrape
+              Search
+            </TabsTrigger>
+            <TabsTrigger value="scraping" className="flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              Sessions & Scraping
             </TabsTrigger>
             <TabsTrigger value="database" className="flex items-center gap-2">
               <Database className="w-4 h-4" />
               Database Config
             </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              Sessions
+            <TabsTrigger value="tools" className="flex items-center gap-2">
+              <Calculator className="w-4 h-4" />
+              Free Tools
             </TabsTrigger>
           </TabsList>
 
@@ -215,36 +275,30 @@ export default function Index() {
                 {/* Database Status */}
                 <DatabaseSetup onStatsUpdate={setDbStats} />
 
-                {/* Scrape Panel */}
-                <ScrapePanel 
-                  activeSessionId={getActiveSessionId()} 
-                  onScrapeComplete={handleScrapeComplete}
-                />
-
-                <Tabs defaultValue="prompt" className="w-full">
+                <Tabs defaultValue="filters" className="w-full">
                   <TabsList className="w-full grid grid-cols-2 mb-4">
-                    <TabsTrigger value="prompt" className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4" />
-                      AI Prompt
-                    </TabsTrigger>
                     <TabsTrigger value="filters" className="flex items-center gap-2">
                       <Filter className="w-4 h-4" />
                       Filters
                     </TabsTrigger>
+                    <TabsTrigger value="prompt" className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4" />
+                      AI Prompt
+                    </TabsTrigger>
                   </TabsList>
+
+                  <TabsContent value="filters" className="mt-0">
+                    <AdvancedFilters
+                      filters={filters}
+                      onFiltersChange={setFilters}
+                      onSearch={handleFilterSearch}
+                    />
+                  </TabsContent>
 
                   <TabsContent value="prompt" className="mt-0">
                     <PromptSearch 
                       onSearch={handlePromptSearch}
                       isLoading={isLoading}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="filters" className="mt-0">
-                    <SearchFiltersPanel
-                      filters={filters}
-                      onFiltersChange={setFilters}
-                      onSearch={handleFilterSearch}
                     />
                   </TabsContent>
                 </Tabs>
@@ -262,22 +316,37 @@ export default function Index() {
             </div>
           </TabsContent>
 
-          <TabsContent value="database">
+          <TabsContent value="scraping">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <DatabaseConfigPanel />
+              {/* Sessions */}
               <div className="space-y-6">
+                <SessionManager
+                  sessions={sessions}
+                  onSessionsChange={handleSessionsChange}
+                />
+              </div>
+              
+              {/* Scraping + CSV Import */}
+              <div className="space-y-6">
+                <ScrapePanel 
+                  activeSessionId={getActiveSessionId()} 
+                  onScrapeComplete={handleScrapeComplete}
+                />
                 <DataImporter onImportComplete={loadCreators} />
-                <DuplicateDetector onRefresh={loadCreators} />
               </div>
             </div>
           </TabsContent>
 
-          <TabsContent value="settings">
-            <div className="max-w-2xl">
-              <SessionManager
-                sessions={sessions}
-                onSessionsChange={handleSessionsChange}
-              />
+          <TabsContent value="database">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <DatabaseConfigPanel />
+              <DuplicateDetector onRefresh={loadCreators} />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="tools">
+            <div className="max-w-2xl mx-auto">
+              <FreeTools />
             </div>
           </TabsContent>
         </Tabs>
