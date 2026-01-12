@@ -7,8 +7,8 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { SearchFilters } from "@/domain/entities/Creator";
 import { 
-  AdvancedSearchFilters, 
   PLATFORMS, 
   NICHES, 
   CONTENT_TYPES, 
@@ -16,10 +16,9 @@ import {
   AGE_RANGES, 
   LANGUAGES, 
   ETHNICITIES 
-} from "@/types/creator";
+} from "@/domain/constants/filters";
 import { 
   Hash, 
-  AtSign, 
   Search, 
   X, 
   Filter, 
@@ -33,14 +32,40 @@ import {
 } from "lucide-react";
 
 interface AdvancedFiltersProps {
-  filters: AdvancedSearchFilters;
-  onFiltersChange: (filters: AdvancedSearchFilters) => void;
+  filters: SearchFilters;
+  onFiltersChange: (filters: SearchFilters) => void;
   onSearch: () => void;
 }
 
+const DEFAULT_FILTERS: SearchFilters = {
+  hashtags: [],
+  mentions: [],
+  keywords: [],
+  minFollowers: 0,
+  maxFollowers: 10000000,
+  isVerified: null,
+  isBusiness: null,
+  isPrivate: null,
+  profileType: "",
+  category: "",
+  location: "",
+  city: "",
+  country: "",
+  state: "",
+  gender: "",
+  ageRange: "",
+  language: "",
+  ethnicity: "",
+  minPrice: 0,
+  maxPrice: 100000,
+  platform: "",
+  niche: "",
+  contentType: "",
+  isPremium: null
+};
+
 export function AdvancedFilters({ filters, onFiltersChange, onSearch }: AdvancedFiltersProps) {
   const [hashtagInput, setHashtagInput] = useState("");
-  const [mentionInput, setMentionInput] = useState("");
   const [keywordInput, setKeywordInput] = useState("");
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
@@ -51,16 +76,6 @@ export function AdvancedFilters({ filters, onFiltersChange, onSearch }: Advanced
         hashtags: [...filters.hashtags, hashtagInput.trim().replace('#', '')]
       });
       setHashtagInput("");
-    }
-  };
-
-  const addMention = () => {
-    if (mentionInput.trim() && !filters.mentions.includes(mentionInput.trim())) {
-      onFiltersChange({
-        ...filters,
-        mentions: [...filters.mentions, mentionInput.trim().replace('@', '')]
-      });
-      setMentionInput("");
     }
   };
 
@@ -88,32 +103,12 @@ export function AdvancedFilters({ filters, onFiltersChange, onSearch }: Advanced
   };
 
   const clearAllFilters = () => {
-    onFiltersChange({
-      hashtags: [],
-      mentions: [],
-      keywords: [],
-      minFollowers: 0,
-      maxFollowers: 10000000,
-      isVerified: null,
-      isBusiness: null,
-      isPrivate: null,
-      profileType: "",
-      category: "",
-      location: "",
-      city: "",
-      country: "",
-      state: "",
-      gender: "",
-      ageRange: "",
-      language: "",
-      ethnicity: "",
-      minPrice: 0,
-      maxPrice: 100000,
-      platform: "",
-      niche: "",
-      contentType: "",
-      isPremium: null
-    });
+    onFiltersChange(DEFAULT_FILTERS);
+  };
+
+  // Helper to ensure value is never empty string for SelectItem
+  const getSelectValue = (value: string | undefined, placeholder: string) => {
+    return value || placeholder;
   };
 
   return (
@@ -218,15 +213,16 @@ export function AdvancedFilters({ filters, onFiltersChange, onSearch }: Advanced
             Platform
           </Label>
           <Select 
-            value={filters.platform || ""} 
-            onValueChange={(value) => onFiltersChange({ ...filters, platform: value })}
+            value={filters.platform || "all"} 
+            onValueChange={(value) => onFiltersChange({ ...filters, platform: value === "all" ? "" : value })}
           >
             <SelectTrigger>
               <SelectValue placeholder="All platforms" />
             </SelectTrigger>
             <SelectContent>
-              {PLATFORMS.map(platform => (
-                <SelectItem key={platform} value={platform === "Any" ? "" : platform}>
+              <SelectItem value="all">All platforms</SelectItem>
+              {PLATFORMS.filter(p => p !== "Any").map(platform => (
+                <SelectItem key={platform} value={platform}>
                   {platform}
                 </SelectItem>
               ))}
@@ -241,14 +237,14 @@ export function AdvancedFilters({ filters, onFiltersChange, onSearch }: Advanced
             Niche / Category
           </Label>
           <Select 
-            value={filters.niche || ""} 
-            onValueChange={(value) => onFiltersChange({ ...filters, niche: value })}
+            value={filters.niche || "all"} 
+            onValueChange={(value) => onFiltersChange({ ...filters, niche: value === "all" ? "" : value })}
           >
             <SelectTrigger>
               <SelectValue placeholder="All niches" />
             </SelectTrigger>
             <SelectContent className="max-h-[200px]">
-              <SelectItem value="">All niches</SelectItem>
+              <SelectItem value="all">All niches</SelectItem>
               {NICHES.map(niche => (
                 <SelectItem key={niche} value={niche}>{niche}</SelectItem>
               ))}
@@ -301,14 +297,14 @@ export function AdvancedFilters({ filters, onFiltersChange, onSearch }: Advanced
           <div className="space-y-2">
             <Label className="text-sm font-medium">Content Type</Label>
             <Select 
-              value={filters.contentType || ""} 
-              onValueChange={(value) => onFiltersChange({ ...filters, contentType: value })}
+              value={filters.contentType || "all"} 
+              onValueChange={(value) => onFiltersChange({ ...filters, contentType: value === "all" ? "" : value })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="All content types" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All content types</SelectItem>
+                <SelectItem value="all">All content types</SelectItem>
                 {CONTENT_TYPES.map(type => (
                   <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
@@ -320,15 +316,16 @@ export function AdvancedFilters({ filters, onFiltersChange, onSearch }: Advanced
           <div className="space-y-2">
             <Label className="text-sm font-medium">Gender</Label>
             <Select 
-              value={filters.gender || ""} 
-              onValueChange={(value) => onFiltersChange({ ...filters, gender: value })}
+              value={filters.gender || "all"} 
+              onValueChange={(value) => onFiltersChange({ ...filters, gender: value === "all" ? "" : value })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Any gender" />
               </SelectTrigger>
               <SelectContent>
-                {GENDERS.map(gender => (
-                  <SelectItem key={gender} value={gender === "Any" ? "" : gender}>
+                <SelectItem value="all">Any gender</SelectItem>
+                {GENDERS.filter(g => g !== "Any").map(gender => (
+                  <SelectItem key={gender} value={gender}>
                     {gender}
                   </SelectItem>
                 ))}
@@ -340,15 +337,16 @@ export function AdvancedFilters({ filters, onFiltersChange, onSearch }: Advanced
           <div className="space-y-2">
             <Label className="text-sm font-medium">Age Range</Label>
             <Select 
-              value={filters.ageRange || ""} 
-              onValueChange={(value) => onFiltersChange({ ...filters, ageRange: value })}
+              value={filters.ageRange || "all"} 
+              onValueChange={(value) => onFiltersChange({ ...filters, ageRange: value === "all" ? "" : value })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Any age" />
               </SelectTrigger>
               <SelectContent>
-                {AGE_RANGES.map(age => (
-                  <SelectItem key={age} value={age === "Any" ? "" : age}>
+                <SelectItem value="all">Any age</SelectItem>
+                {AGE_RANGES.filter(a => a !== "Any").map(age => (
+                  <SelectItem key={age} value={age}>
                     {age}
                   </SelectItem>
                 ))}
@@ -363,15 +361,16 @@ export function AdvancedFilters({ filters, onFiltersChange, onSearch }: Advanced
               Language
             </Label>
             <Select 
-              value={filters.language || ""} 
-              onValueChange={(value) => onFiltersChange({ ...filters, language: value })}
+              value={filters.language || "all"} 
+              onValueChange={(value) => onFiltersChange({ ...filters, language: value === "all" ? "" : value })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Any language" />
               </SelectTrigger>
               <SelectContent>
-                {LANGUAGES.map(lang => (
-                  <SelectItem key={lang} value={lang === "Any" ? "" : lang}>
+                <SelectItem value="all">Any language</SelectItem>
+                {LANGUAGES.filter(l => l !== "Any").map(lang => (
+                  <SelectItem key={lang} value={lang}>
                     {lang}
                   </SelectItem>
                 ))}
@@ -383,15 +382,16 @@ export function AdvancedFilters({ filters, onFiltersChange, onSearch }: Advanced
           <div className="space-y-2">
             <Label className="text-sm font-medium">Ethnicity</Label>
             <Select 
-              value={filters.ethnicity || ""} 
-              onValueChange={(value) => onFiltersChange({ ...filters, ethnicity: value })}
+              value={filters.ethnicity || "all"} 
+              onValueChange={(value) => onFiltersChange({ ...filters, ethnicity: value === "all" ? "" : value })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Any ethnicity" />
               </SelectTrigger>
               <SelectContent>
-                {ETHNICITIES.map(eth => (
-                  <SelectItem key={eth} value={eth === "Any" ? "" : eth}>
+                <SelectItem value="all">Any ethnicity</SelectItem>
+                {ETHNICITIES.filter(e => e !== "Any").map(eth => (
+                  <SelectItem key={eth} value={eth}>
                     {eth}
                   </SelectItem>
                 ))}
