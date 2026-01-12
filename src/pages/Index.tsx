@@ -15,8 +15,14 @@ import { DuplicateDetector } from "@/components/DuplicateDetector";
 import { DataImporter } from "@/components/DataImporter";
 import { FreeTools } from "@/components/FreeTools";
 import { AdvancedFilters } from "@/components/AdvancedFilters";
-import { Creator, AdvancedSearchFilters, SessionConfig } from "@/types/creator";
-import { api, DatabaseStats } from "@/lib/api";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
+import { Creator, SearchFilters, SessionConfig } from "@/domain/entities/Creator";
+import { 
+  creatorRepository, 
+  sessionRepository 
+} from "@/adapters/repositories/SupabaseCreatorRepository";
+import { DatabaseStats } from "@/ports/repositories/CreatorRepository";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { 
@@ -28,11 +34,12 @@ import {
   Plus,
   LogOut,
   User,
-  Calculator
+  Calculator,
+  BarChart3
 } from "lucide-react";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 
-const defaultFilters: AdvancedSearchFilters = {
+const defaultFilters: SearchFilters = {
   hashtags: [],
   mentions: [],
   keywords: [],
@@ -59,15 +66,97 @@ const defaultFilters: AdvancedSearchFilters = {
   isPremium: null
 };
 
+// Legacy Creator type for UI components that still use snake_case
+interface LegacyCreator {
+  id: number;
+  username: string;
+  full_name: string;
+  profile_url: string;
+  pk: string;
+  follower_count: number;
+  following_count: number;
+  media_count: number;
+  is_verified: boolean;
+  is_business: boolean;
+  is_private: boolean;
+  category: string;
+  bio: string;
+  external_url: string;
+  profile_pic_url: string;
+  profile_pic_local: string;
+  bio_hashtags: string;
+  bio_mentions: string;
+  engagement_rate: number;
+  source_keyword: string;
+  search_score: number;
+  profile_type: string;
+  scraped_at: string;
+  last_updated: string;
+  location?: string;
+  city?: string;
+  country?: string;
+  state?: string;
+  gender?: string;
+  age_range?: string;
+  language?: string;
+  ethnicity?: string;
+  price_range?: string;
+  platform?: string;
+  niche?: string;
+  content_type?: string;
+  is_premium?: boolean;
+}
+
+// Map domain Creator to legacy format for UI components
+const mapToLegacy = (c: Creator): LegacyCreator => ({
+  id: parseInt(c.id) || 0,
+  username: c.username,
+  full_name: c.fullName,
+  profile_url: c.profileUrl,
+  pk: c.pk,
+  follower_count: c.followerCount,
+  following_count: c.followingCount,
+  media_count: c.mediaCount,
+  is_verified: c.isVerified,
+  is_business: c.isBusiness,
+  is_private: c.isPrivate,
+  category: c.category,
+  bio: c.bio,
+  external_url: c.externalUrl,
+  profile_pic_url: c.profilePicUrl,
+  profile_pic_local: c.profilePicLocal,
+  bio_hashtags: c.bioHashtags,
+  bio_mentions: c.bioMentions,
+  engagement_rate: c.engagementRate,
+  source_keyword: c.sourceKeyword,
+  search_score: c.searchScore,
+  profile_type: c.profileType,
+  scraped_at: c.scrapedAt,
+  last_updated: c.lastUpdated,
+  location: c.location,
+  city: c.city,
+  country: c.country,
+  state: c.state,
+  gender: c.gender,
+  age_range: c.ageRange,
+  language: c.language,
+  ethnicity: c.ethnicity,
+  price_range: c.priceRange,
+  platform: c.platform,
+  niche: c.niche,
+  content_type: c.contentType,
+  is_premium: c.isPremium,
+});
+
 export default function Index() {
   const navigate = useNavigate();
   const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [filters, setFilters] = useState<AdvancedSearchFilters>(defaultFilters);
-  const [creators, setCreators] = useState<Creator[]>([]);
+  const [filters, setFilters] = useState<SearchFilters>(defaultFilters);
+  const [creators, setCreators] = useState<LegacyCreator[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [sessions, setSessions] = useState<SessionConfig[]>([]);
-  const [dbStats, setDbStats] = useState<DatabaseStats['stats'] | null>(null);
-  const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
+  const [dbStats, setDbStats] = useState<DatabaseStats | null>(null);
+  const [selectedCreator, setSelectedCreator] = useState<LegacyCreator | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("search");
@@ -94,16 +183,16 @@ export default function Index() {
   }, []);
 
   const loadSessions = async () => {
-    const loadedSessions = await api.getSessions();
+    const loadedSessions = await sessionRepository.getAll();
     setSessions(loadedSessions);
   };
 
   const loadCreators = async () => {
     setIsLoading(true);
     try {
-      const result = await api.searchCreators(defaultFilters);
+      const result = await creatorRepository.search(defaultFilters);
       if (result.success) {
-        setCreators(result.creators.map(mapCreatorFromDb));
+        setCreators(result.creators.map(mapToLegacy));
       }
     } catch (error) {
       console.error('Failed to load creators:', error);
@@ -112,40 +201,12 @@ export default function Index() {
     }
   };
 
-  const mapCreatorFromDb = (c: any): Creator => ({
-    id: c.id,
-    username: c.username || '',
-    full_name: c.full_name || '',
-    profile_url: c.profile_url || '',
-    pk: c.pk || '',
-    follower_count: c.follower_count || 0,
-    following_count: c.following_count || 0,
-    media_count: c.media_count || 0,
-    is_verified: c.is_verified || false,
-    is_business: c.is_business || false,
-    is_private: c.is_private || false,
-    category: c.category || '',
-    bio: c.bio || '',
-    external_url: c.external_url || '',
-    profile_pic_url: c.profile_pic_url || '',
-    profile_pic_local: c.profile_pic_local || '',
-    bio_hashtags: c.bio_hashtags || '',
-    bio_mentions: c.bio_mentions || '',
-    engagement_rate: Number(c.engagement_rate) || 0,
-    source_keyword: c.source_keyword || '',
-    search_score: c.search_score || 0,
-    profile_type: c.profile_type || '',
-    scraped_at: c.scraped_at || '',
-    last_updated: c.last_updated || ''
-  });
-
   const handleFilterSearch = async () => {
     setIsLoading(true);
     try {
-      const result = await api.searchCreators(filters);
+      const result = await creatorRepository.search(filters);
       if (result.success) {
-        const mappedCreators = result.creators.map(mapCreatorFromDb);
-        setCreators(mappedCreators);
+        setCreators(result.creators.map(mapToLegacy));
         toast.success(`Found ${result.total} creators`);
       } else {
         toast.error(result.error || "Search failed");
@@ -160,17 +221,16 @@ export default function Index() {
   const handlePromptSearch = async (prompt: string, extracted: ExtractedFilters) => {
     setIsLoading(true);
     try {
-      const promptFilters: AdvancedSearchFilters = {
+      const promptFilters: SearchFilters = {
         ...defaultFilters,
         keywords: extracted.creatorTypes,
         minFollowers: extracted.followerRange.min,
         maxFollowers: extracted.followerRange.max,
       };
       
-      const result = await api.searchCreators(promptFilters);
+      const result = await creatorRepository.search(promptFilters);
       if (result.success) {
-        const mappedCreators = result.creators.map(mapCreatorFromDb);
-        setCreators(mappedCreators);
+        setCreators(result.creators.map(mapToLegacy));
         toast.success(`AI found ${result.total} creators matching your criteria`);
       } else {
         toast.error(result.error || "Search failed");
@@ -182,7 +242,7 @@ export default function Index() {
     }
   };
 
-  const handleSelectCreator = (creator: Creator) => {
+  const handleSelectCreator = (creator: LegacyCreator) => {
     setSelectedCreator(creator);
     setIsDetailModalOpen(true);
   };
@@ -221,11 +281,12 @@ export default function Index() {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              <ThemeToggle />
               <Button onClick={() => setIsAddModalOpen(true)} variant="outline">
                 <Plus className="h-4 w-4 mr-2" />
                 Add Creator
               </Button>
-              <ExportPanel creators={creators} />
+              <ExportPanel creators={creators as any} />
               {user ? (
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground hidden md:inline">
@@ -249,10 +310,14 @@ export default function Index() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="mb-6">
+          <TabsList className="mb-6 flex-wrap">
             <TabsTrigger value="search" className="flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
               Search
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="flex items-center gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Analytics
             </TabsTrigger>
             <TabsTrigger value="scraping" className="flex items-center gap-2">
               <Settings className="w-4 h-4" />
@@ -307,13 +372,17 @@ export default function Index() {
               {/* Main Content Area */}
               <section className="lg:col-span-8 xl:col-span-9">
                 <CreatorResults
-                  creators={creators}
+                  creators={creators as any}
                   isLoading={isLoading}
-                  onSelect={handleSelectCreator}
+                  onSelect={handleSelectCreator as any}
                   onRefresh={loadCreators}
                 />
               </section>
             </div>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <AnalyticsDashboard />
           </TabsContent>
 
           <TabsContent value="scraping">
@@ -354,7 +423,7 @@ export default function Index() {
 
       {/* Creator Detail Modal */}
       <CreatorDetailModal
-        creator={selectedCreator}
+        creator={selectedCreator as any}
         open={isDetailModalOpen}
         onOpenChange={setIsDetailModalOpen}
         onUpdate={loadCreators}

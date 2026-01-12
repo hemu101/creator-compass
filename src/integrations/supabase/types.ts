@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics_events: {
+        Row: {
+          created_at: string
+          event_data: Json | null
+          event_type: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          event_data?: Json | null
+          event_type: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+        }
+        Relationships: []
+      }
       creator_notes: {
         Row: {
           created_at: string
@@ -48,22 +69,36 @@ export type Database = {
       }
       creators: {
         Row: {
+          age_range: string | null
           bio: string | null
           bio_hashtags: string | null
           bio_mentions: string | null
           category: string | null
+          city: string | null
+          content_type: string | null
+          country: string | null
           engagement_rate: number | null
+          ethnicity: string | null
           external_url: string | null
           follower_count: number | null
           following_count: number | null
           full_name: string | null
+          gender: string | null
           id: string
           is_business: boolean | null
+          is_premium: boolean | null
           is_private: boolean | null
           is_verified: boolean | null
+          language: string | null
           last_updated: string | null
+          location: string | null
+          max_price: number | null
           media_count: number | null
+          min_price: number | null
+          niche: string | null
           pk: string | null
+          platform: string | null
+          price_range: string | null
           profile_pic_local: string | null
           profile_pic_url: string | null
           profile_type: string | null
@@ -71,25 +106,40 @@ export type Database = {
           scraped_at: string | null
           search_score: number | null
           source_keyword: string | null
+          state: string | null
           username: string
         }
         Insert: {
+          age_range?: string | null
           bio?: string | null
           bio_hashtags?: string | null
           bio_mentions?: string | null
           category?: string | null
+          city?: string | null
+          content_type?: string | null
+          country?: string | null
           engagement_rate?: number | null
+          ethnicity?: string | null
           external_url?: string | null
           follower_count?: number | null
           following_count?: number | null
           full_name?: string | null
+          gender?: string | null
           id?: string
           is_business?: boolean | null
+          is_premium?: boolean | null
           is_private?: boolean | null
           is_verified?: boolean | null
+          language?: string | null
           last_updated?: string | null
+          location?: string | null
+          max_price?: number | null
           media_count?: number | null
+          min_price?: number | null
+          niche?: string | null
           pk?: string | null
+          platform?: string | null
+          price_range?: string | null
           profile_pic_local?: string | null
           profile_pic_url?: string | null
           profile_type?: string | null
@@ -97,25 +147,40 @@ export type Database = {
           scraped_at?: string | null
           search_score?: number | null
           source_keyword?: string | null
+          state?: string | null
           username: string
         }
         Update: {
+          age_range?: string | null
           bio?: string | null
           bio_hashtags?: string | null
           bio_mentions?: string | null
           category?: string | null
+          city?: string | null
+          content_type?: string | null
+          country?: string | null
           engagement_rate?: number | null
+          ethnicity?: string | null
           external_url?: string | null
           follower_count?: number | null
           following_count?: number | null
           full_name?: string | null
+          gender?: string | null
           id?: string
           is_business?: boolean | null
+          is_premium?: boolean | null
           is_private?: boolean | null
           is_verified?: boolean | null
+          language?: string | null
           last_updated?: string | null
+          location?: string | null
+          max_price?: number | null
           media_count?: number | null
+          min_price?: number | null
+          niche?: string | null
           pk?: string | null
+          platform?: string | null
+          price_range?: string | null
           profile_pic_local?: string | null
           profile_pic_url?: string | null
           profile_type?: string | null
@@ -123,6 +188,7 @@ export type Database = {
           scraped_at?: string | null
           search_score?: number | null
           source_keyword?: string | null
+          state?: string | null
           username?: string
         }
         Relationships: []
