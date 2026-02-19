@@ -24,6 +24,7 @@ import {
 } from "@/adapters/repositories/SupabaseCreatorRepository";
 import { DatabaseStats } from "@/ports/repositories/CreatorRepository";
 import { toast } from "sonner";
+import { useRealtimeCreators } from "@/hooks/useRealtimeCreators";
 import { Button } from "@/components/ui/button";
 import { 
   Sparkles, 
@@ -161,6 +162,8 @@ export default function Index() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("search");
 
+  // Real-time notifications (defined after loadCreators below)
+
   // Auth state
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -200,6 +203,9 @@ export default function Index() {
       setIsLoading(false);
     }
   };
+
+  // Real-time notifications for new/updated/deleted creators
+  useRealtimeCreators({ onNewCreator: loadCreators });
 
   const handleFilterSearch = async () => {
     setIsLoading(true);
